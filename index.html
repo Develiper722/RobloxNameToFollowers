@@ -43,10 +43,16 @@ async function fetchWithProxy(url) {
 }
 
 async function getUserByName(username) {
-  const url = `https://users.roblox.com/v1/users/search?keyword=${encodeURIComponent(username)}&limit=1`;
-  const data = await fetchWithProxy(url);
+  const url = "https://users.roblox.com/v1/usernames/users";
+  const res = await fetchWithProxy(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ usernames: [username] })
+  });
+  const data = await res.json();
   return data.data?.[0] || null;
 }
+
 
 async function getUserById(id) {
   const url = `https://users.roblox.com/v1/users/${id}`;
