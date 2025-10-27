@@ -1,222 +1,122 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Roblox User Info Lookup</title>
-
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-
+  <title>Roblox User Lookup</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
     body {
-      font-family: 'Inter', sans-serif;
-      background-color: #f0f4f8;
+      font-family: system-ui, sans-serif;
+      background: #0f172a;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      text-align: center;
     }
-    .roblox-gradient {
-      background: linear-gradient(90deg, #1092e0 0%, #00508a 100%);
+    input, button {
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      margin: 5px;
     }
-    .roblox-text-blue {
-      color: #1092e0;
+    input {
+      width: 200px;
+    }
+    button {
+      cursor: pointer;
+      background: #2563eb;
+      color: white;
+    }
+    button:hover {
+      background: #1d4ed8;
+    }
+    #result {
+      margin-top: 20px;
+      background: #1e293b;
+      padding: 15px;
+      border-radius: 10px;
+      min-width: 300px;
+      max-width: 500px;
     }
   </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
-
-  <div class="w-full max-w-md bg-white shadow-2xl rounded-xl p-6 md:p-8 space-y-6">
-    <!-- Header -->
-    <header class="text-center">
-      <div class="flex items-center justify-center space-x-2 roblox-text-blue">
-        <i data-lucide="scan" class="w-8 h-8"></i>
-        <h1 class="text-3xl font-extrabold">Roblox ID & Followers</h1>
-      </div>
-      <p class="text-gray-500 mt-2">Get User ID, Avatar & Follower Count.</p>
-    </header>
-
-    <!-- Input Form -->
-    <div class="space-y-4">
-      <label for="usernameInput" class="block text-sm font-medium text-gray-700">Roblox Username</label>
-      <input
-        type="text"
-        id="usernameInput"
-        placeholder="e.g., Builderman"
-        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150"
-        required
-      >
-      <button
-        id="submitButton"
-        class="w-full flex items-center justify-center roblox-gradient text-white font-semibold py-3 rounded-lg shadow-lg hover:shadow-xl transition duration-300 ease-in-out transform hover:scale-[1.01]"
-      >
-        <span id="buttonText">Check Info</span>
-        <svg id="loadingSpinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-      </button>
-    </div>
-
-    <!-- Results -->
-    <div id="resultsCard" class="bg-gray-50 border border-gray-200 rounded-xl p-4 hidden space-y-4">
-      <h3 class="text-lg font-bold text-gray-800 flex items-center roblox-text-blue">
-        <i data-lucide="info" class="w-5 h-5 mr-2"></i> User Information
-      </h3>
-
-      <div class="flex justify-center">
-        <img id="avatar" class="w-24 h-24 rounded-full border-2 border-gray-300 shadow-md" src="" alt="Avatar">
-      </div>
-
-      <div class="space-y-2 text-sm">
-        <p><strong>Requested Username:</strong> <span id="requestedUsername"></span></p>
-        <p><strong>Display Name:</strong> <span id="displayName"></span></p>
-        <p><strong>User ID:</strong> <span id="userIdDisplay" class="font-medium text-green-600 text-lg"></span></p>
-        <p class="pt-2 border-t border-gray-200">
-          <strong>Follower Count:</strong> <span id="followerCountDisplay" class="font-extrabold text-2xl roblox-text-blue"></span>
-        </p>
-        <p id="verifiedBadge" class="text-xs text-blue-500 flex items-center font-semibold hidden">
-          <i data-lucide="badge-check" class="w-4 h-4 mr-1"></i> Verified User
-        </p>
-      </div>
-
-      <a id="profileLink" href="#" target="_blank" rel="noopener noreferrer"
-         class="w-full flex items-center justify-center bg-green-500 text-white font-semibold py-2 rounded-lg shadow-md hover:bg-green-600 transition duration-150 transform hover:scale-[1.01] mt-4">
-        <i data-lucide="external-link" class="w-5 h-5 mr-2"></i> Go to User Profile
-      </a>
-    </div>
-
-    <!-- Error Modal -->
-    <div id="errorModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 hidden p-4">
-      <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm space-y-4">
-        <div class="flex items-center space-x-3 text-red-600">
-          <i data-lucide="alert-triangle" class="w-6 h-6"></i>
-          <h4 class="text-xl font-bold">Lookup Failed</h4>
-        </div>
-        <p id="errorMessage" class="text-gray-600 text-sm"></p>
-        <button onclick="document.getElementById('errorModal').classList.add('hidden')"
-                class="w-full bg-red-500 text-white font-semibold py-2 rounded-lg hover:bg-red-600 transition duration-150">
-          Close
-        </button>
-      </div>
-    </div>
+<body>
+  <h1>🔍 Roblox User Lookup</h1>
+  <div>
+    <input id="username" placeholder="Enter username" />
+    <button id="lookup">Lookup</button>
   </div>
+  <div id="result">Enter a Roblox username to begin.</div>
 
   <script>
-    lucide.createIcons();
-    const CORS_PROXY = 'https://corsproxy.io/?';
-    const usernameInput = document.getElementById('usernameInput');
-    const submitButton = document.getElementById('submitButton');
-    const buttonText = document.getElementById('buttonText');
-    const loadingSpinner = document.getElementById('loadingSpinner');
-    const resultsCard = document.getElementById('resultsCard');
-    const requestedUsername = document.getElementById('requestedUsername');
-    const displayName = document.getElementById('displayName');
-    const userIdDisplay = document.getElementById('userIdDisplay');
-    const followerCountDisplay = document.getElementById('followerCountDisplay');
-    const verifiedBadge = document.getElementById('verifiedBadge');
-    const errorModal = document.getElementById('errorModal');
-    const errorMessage = document.getElementById('errorMessage');
-    const profileLink = document.getElementById('profileLink');
-    const avatarImg = document.getElementById('avatar');
+    const PROXIES = [
+      'https://snowy-wildflower-84e4.marcusvrwastaken.workers.dev/?url=',
+      'https://api.allorigins.win/raw?url=',
+      'https://thingproxy.freeboard.io/fetch/'
+    ];
 
-    function showError(msg) {
-      errorMessage.textContent = msg;
-      errorModal.classList.remove('hidden');
-    }
-
-    function formatNumber(num) {
-      return num?.toLocaleString('en-US') ?? 'N/A';
-    }
-
-    function setLoading(isLoading) {
-      submitButton.disabled = usernameInput.disabled = isLoading;
-      if (isLoading) {
-        loadingSpinner.classList.remove('hidden');
-        buttonText.textContent = 'Searching...';
-        submitButton.classList.add('opacity-75', 'cursor-not-allowed');
-      } else {
-        loadingSpinner.classList.add('hidden');
-        buttonText.textContent = 'Check Info';
-        submitButton.classList.remove('opacity-75', 'cursor-not-allowed');
-      }
-    }
-
-    async function fetchWithProxy(url, options = {}, retries = 3) {
-      const finalUrl = CORS_PROXY + encodeURIComponent(url);
-      for (let i = 0; i < retries; i++) {
+    async function fetchWithProxy(url, options = {}) {
+      for (const proxy of PROXIES) {
+        const finalUrl = proxy + encodeURIComponent(url);
         try {
           const response = await fetch(finalUrl, options);
-          if (!response.ok) {
-            if (response.status === 404) throw new Error('User not found.');
-            if (response.status === 429) throw new Error('Rate limited by Roblox. Try again later.');
-            if (response.status === 403) throw new Error('Request forbidden by Roblox API.');
-            throw new Error(`HTTP ${response.status} — unexpected error.`);
-          }
-          return response;
+          if (response.ok) return response;
+          console.warn(`Proxy ${proxy} failed (${response.status})`);
         } catch (err) {
-          if (i === retries - 1) throw err;
-          await new Promise(res => setTimeout(res, 200 * Math.pow(2, i)));
+          console.warn(`Proxy ${proxy} error`, err);
         }
       }
+      throw new Error('All proxies failed. Roblox API may be unreachable.');
     }
 
-    async function fetchRobloxData() {
-      const username = usernameInput.value.trim().toLowerCase();
-      if (!username) return showError('Please enter a Roblox username.');
-      resultsCard.classList.add('hidden');
-      verifiedBadge.classList.add('hidden');
-      setLoading(true);
-
+    async function lookupUser(username) {
+      const resultDiv = document.getElementById('result');
+      resultDiv.textContent = 'Loading...';
       try {
-        localStorage.setItem('lastUsername', username);
+        const response = await fetchWithProxy(
+          `https://users.roblox.com/v1/users/search?keyword=${encodeURIComponent(username)}&limit=1`
+        );
+        const data = await response.json();
 
-        // Step 1: Get user ID
-        const idResponse = await fetchWithProxy('https://users.roblox.com/v1/usernames/users', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ usernames: [username] })
-        });
-        const idData = await idResponse.json();
-        const userData = idData.data?.[0];
-        if (!userData) throw new Error(`User "${username}" not found.`);
-
-        const userId = userData.id;
-
-        // Step 2: Followers
-        const followersResponse = await fetchWithProxy(`https://friends.roblox.com/v1/users/${userId}/followers/count`);
-        const followersData = await followersResponse.json();
-
-        // Step 3: Avatar
-        const avatarResponse = await fetchWithProxy(`https://thumbnails.roblox.com/v1/users/avatar?userIds=${userId}&size=150x150&format=Png&isCircular=true`);
-        const avatarJson = await avatarResponse.json();
-        const avatarUrl = avatarJson.data?.[0]?.imageUrl || '';
-
-        // Display
-        requestedUsername.textContent = userData.requestedUsername;
-        displayName.textContent = userData.displayName;
-        userIdDisplay.textContent = formatNumber(userId);
-        followerCountDisplay.textContent = formatNumber(followersData.count);
-        avatarImg.src = avatarUrl;
-        profileLink.href = `https://www.roblox.com/users/${userId}/profile`;
-        if (userData.hasVerifiedBadge) verifiedBadge.classList.remove('hidden');
-
-        resultsCard.classList.remove('hidden');
+        if (data.data && data.data.length > 0) {
+          const user = data.data[0];
+          resultDiv.innerHTML = `
+            <h2>${user.name}</h2>
+            <img src="https://www.roblox.com/headshot-thumbnail/image?userId=${user.id}&width=150&height=150&format=png" alt="Avatar"><br>
+            <p><b>Display Name:</b> ${user.displayName}</p>
+            <p><b>User ID:</b> ${user.id}</p>
+            <p><a href="https://www.roblox.com/users/${user.id}/profile" target="_blank">View Profile</a></p>
+          `;
+        } else {
+          resultDiv.textContent = 'User not found.';
+        }
       } catch (err) {
-        showError(err.message);
-      } finally {
-        setLoading(false);
+        console.error(err);
+        resultDiv.textContent = 'Rate limited or failed to contact Roblox. Try again later.';
       }
     }
 
-    submitButton.addEventListener('click', fetchRobloxData);
-    usernameInput.addEventListener('keypress', e => {
-      if (e.key === 'Enter') fetchRobloxData();
+    // Button click event
+    document.getElementById('lookup').addEventListener('click', () => {
+      const username = document.getElementById('username').value.trim();
+      if (username) {
+        window.history.pushState({}, '', `/usernames/${username}`);
+        lookupUser(username);
+      }
     });
 
-    // Autofill last username
-    const saved = localStorage.getItem('lastUsername');
-    if (saved) usernameInput.value = saved;
+    // Auto-load username from URL (for /usernames/username)
+    const path = window.location.pathname;
+    const match = path.match(/^\/usernames\/([^/]+)/);
+    if (match) {
+      const username = decodeURIComponent(match[1]);
+      document.getElementById('username').value = username;
+      lookupUser(username);
+    }
   </script>
 </body>
 </html>
