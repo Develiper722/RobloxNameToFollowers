@@ -6,8 +6,8 @@
 <title>Roblox User Lookup</title>
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.4/dist/tailwind.min.css" rel="stylesheet">
 <style>
-body { font-family: 'Inter', sans-serif; background:#0f172a; color:white; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; margin:0; padding:20px; }
-.card { background:#1e293b; border-radius:12px; padding:24px; max-width:420px; width:100%; box-shadow:0 10px 20px rgba(0,0,0,0.3); text-align:center; }
+body { font-family: 'Inter', sans-serif; background:#0f172a; color:white; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; margin:0; padding:20px; }
+.card { background:#1e293b; border-radius:12px; padding:24px; max-width:600px; width:100%; box-shadow:0 10px 20px rgba(0,0,0,0.3); text-align:center; margin-bottom:20px; }
 input, button { padding:10px; border-radius:8px; border:none; outline:none; }
 input { width:70%; color:black; }
 button { width:25%; background:#2563eb; color:white; font-weight:600; cursor:pointer; transition:0.2s; }
@@ -15,6 +15,7 @@ button:hover { background:#1d4ed8; transform:scale(1.02); }
 #avatar { border-radius:50%; margin:10px auto; }
 a { color:#38bdf8; text-decoration:none; font-weight:500; }
 a:hover { text-decoration:underline; }
+.follower-link { display:inline-block; margin:2px 4px; padding:2px 6px; background:#334155; border-radius:6px; }
 </style>
 </head>
 <body>
@@ -32,6 +33,7 @@ a:hover { text-decoration:underline; }
 <script>
 const PROXY = "https://randomproxy.marcusvrwastaken.workers.dev/";
 
+// Proxy fetch helper
 async function fetchWithProxy(url, options = {}) {
   try {
     const res = await fetch(PROXY + "?url=" + encodeURIComponent(url), options);
@@ -42,6 +44,7 @@ async function fetchWithProxy(url, options = {}) {
   }
 }
 
+// Roblox user lookup
 async function getUserByName(username) {
   const url = "https://users.roblox.com/v1/usernames/users";
   return await fetchWithProxy(url, {
@@ -56,6 +59,28 @@ async function getUserById(id) {
   return await fetchWithProxy(url);
 }
 
+// Fetch follower count
+async function getFollowerCount(userId) {
+  const url = `https://friends.roblox.com/v1/users/${userId}/followers/count`;
+  const data = await fetchWithProxy(url);
+  return data.count || 0;
+}
+
+// Fetch friend count
+async function getFriendCount(userId) {
+  const url = `https://friends.roblox.com/v1/users/${userId}/friends/count`;
+  const data = await fetchWithProxy(url);
+  return data.count || 0;
+}
+
+// Fetch list of followers (limit=100)
+async function getFollowersList(userId, limit = 100) {
+  const url = `https://friends.roblox.com/v1/users/${userId}/followers?limit=${limit}`;
+  const data = await fetchWithProxy(url);
+  return data.data || [];
+}
+
+// Main lookup
 async function lookup(input) {
   const resultDiv = document.getElementById('result');
   resultDiv.innerHTML = `<p>Loading...</p>`;
@@ -73,19 +98,48 @@ async function lookup(input) {
     const avatarUrl = `https://www.roblox.com/headshot-thumbnail/image?userId=${user.id}&width=180&height=180&format=png`;
     const profileUrl = `https://www.roblox.com/users/${user.id}/profile`;
 
+    // Fetch follower & friend count
+    const [followers, friends] = await Promise.all([
+      getFollowerCount(user.id),
+      getFriendCount(user.id)
+    ]);
+
     resultDiv.innerHTML = `
       <img id="avatar" src="${avatarUrl}" width="180" height="180" alt="Avatar">
       <h2 class="text-2xl font-bold mt-2">${user.name}</h2>
       <p class="text-gray-300">${user.displayName || ''}</p>
       <p><b>User ID:</b> ${user.id}</p>
       ${user.hasVerifiedBadge ? `<p class="text-green-400">✔️ Verified User</p>` : ''}
+      <p><b>Followers:</b> ${followers} | <b>Friends:</b> ${friends}</p>
       <p class="mt-3"><a href="${profileUrl}" target="_blank">View Roblox Profile →</a></p>
+      <button id="moreInfoBtn" class="mt-3 px-4 py-2 bg-green-500 rounded-lg hover:bg-green-600 transition">Show First 100 Followers</button>
+      <div id="followersList" class="mt-4 text-left"></div>
     `;
+
+    // Add button event
+    document.getElementById('moreInfoBtn').addEventListener('click', async () => {
+      const followersListDiv = document.getElementById('followersList');
+      followersListDiv.innerHTML = `<p>Loading followers...</p>`;
+      try {
+        const followersList = await getFollowersList(user.id, 100);
+        if (followersList.length === 0) {
+          followersListDiv.innerHTML = `<p>No followers found.</p>`;
+        } else {
+          followersListDiv.innerHTML = followersList.map(f => 
+            `<a href="https://www.roblox.com/users/${f.id}/profile" target="_blank" class="follower-link">${f.name}</a>`
+          ).join('');
+        }
+      } catch(err) {
+        followersListDiv.innerHTML = `<p>Error loading followers: ${err.message}</p>`;
+      }
+    });
+
   } catch (err) {
     resultDiv.innerHTML = `<p>${err.message}</p>`;
   }
 }
 
+// Button + input events
 document.getElementById('lookupButton').addEventListener('click', () => {
   const input = document.getElementById('inputField').value.trim();
   if (!input) return;
