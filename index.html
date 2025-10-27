@@ -31,21 +31,35 @@ a:hover { text-decoration:underline; }
 </div>
 
 <script>
-const PROXY = "https://randomproxy.marcusvrwastaken.workers.dev/";
+// --- Proxy Failover Setup ---
+const PROXIES = [
+  "https://randomproxy.marcusvrwastaken.workers.dev/",
+  "https://lucky-king-4d24.marcusvrwastaken.workers.dev/",
+  "https://autumn-feather-e685.marcusvrwastaken.workers.dev/",
+  "https://shrill-bird-9a78.marcusvrwastaken.workers.dev/",
+  "https://sweet-cherry-a82c.marcusvrwastaken.workers.dev/"
+];
 
-async function fetchWithProxy(url, options = {}) {
-  try {
-    const res = await fetch(PROXY + "?url=" + encodeURIComponent(url), options);
-    if (!res.ok) throw new Error(`Proxy failed (${res.status})`);
-    return await res.json();
-  } catch (err) {
-    throw new Error("Failed to fetch via proxy: " + err.message);
+async function fetchWithProxyFailover(url, options = {}) {
+  let lastError = null;
+  for (const proxy of PROXIES) {
+    try {
+      const res = await fetch(proxy + "?url=" + encodeURIComponent(url), options);
+      if (!res.ok) throw new Error(`Proxy failed (${res.status})`);
+      return await res.json();
+    } catch (err) {
+      lastError = err;
+      console.warn(`Proxy ${proxy} failed:`, err.message);
+      await new Promise(r => setTimeout(r, 200));
+    }
   }
+  throw new Error(`All proxies failed: ${lastError.message}`);
 }
 
+// --- Roblox API Helpers ---
 async function getUserByName(username) {
   const url = "https://users.roblox.com/v1/usernames/users";
-  return await fetchWithProxy(url, {
+  return await fetchWithProxyFailover(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ usernames: [username] })
@@ -54,28 +68,29 @@ async function getUserByName(username) {
 
 async function getUserById(id) {
   const url = `https://users.roblox.com/v1/users/${id}`;
-  return await fetchWithProxy(url);
+  return await fetchWithProxyFailover(url);
 }
 
 async function getFollowerCount(userId) {
   const url = `https://friends.roblox.com/v1/users/${userId}/followers/count`;
-  const data = await fetchWithProxy(url);
+  const data = await fetchWithProxyFailover(url);
   return data.count || 0;
 }
 
 async function getFriendCount(userId) {
   const url = `https://friends.roblox.com/v1/users/${userId}/friends/count`;
-  const data = await fetchWithProxy(url);
+  const data = await fetchWithProxyFailover(url);
   return data.count || 0;
 }
 
+// --- Pagination ---
 let followersCursor = null;
 let friendsCursor = null;
 
 async function loadFollowersPage(userId, limit = 100) {
   let url = `https://friends.roblox.com/v1/users/${userId}/followers?limit=${limit}`;
   if (followersCursor) url += `&cursor=${followersCursor}`;
-  const data = await fetchWithProxy(url);
+  const data = await fetchWithProxyFailover(url);
   followersCursor = data.nextPageCursor || null;
   return data.data || [];
 }
@@ -83,11 +98,12 @@ async function loadFollowersPage(userId, limit = 100) {
 async function loadFriendsPage(userId, limit = 100) {
   let url = `https://friends.roblox.com/v1/users/${userId}/friends?limit=${limit}`;
   if (friendsCursor) url += `&cursor=${friendsCursor}`;
-  const data = await fetchWithProxy(url);
+  const data = await fetchWithProxyFailover(url);
   friendsCursor = data.nextPageCursor || null;
   return data.data || [];
 }
 
+// --- Main Lookup Function ---
 async function lookup(input) {
   const resultDiv = document.getElementById('result');
   resultDiv.innerHTML = `<p>Loading...</p>`;
@@ -157,6 +173,7 @@ async function lookup(input) {
   }
 }
 
+// --- Event Listeners ---
 document.getElementById('lookupButton').addEventListener('click', () => {
   const input = document.getElementById('inputField').value.trim();
   if (!input) return;
@@ -165,6 +182,7 @@ document.getElementById('lookupButton').addEventListener('click', () => {
   lookup(input);
 });
 
+// --- Handle URL Routing on Page Load ---
 window.addEventListener('DOMContentLoaded', () => {
   const path = window.location.pathname;
   const nameMatch = path.match(/^\/usernames\/([^/]+)/);
