@@ -6,15 +6,15 @@
 <title>Roblox User Lookup</title>
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.4/dist/tailwind.min.css" rel="stylesheet">
 <style>
-  body { font-family: 'Inter', sans-serif; background: #0f172a; color: white; min-height: 100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; margin:0; padding:20px; }
-  .card { background:#1e293b; border-radius:12px; padding:24px; max-width:420px; width:100%; box-shadow:0 10px 20px rgba(0,0,0,0.3); text-align:center; }
-  input, button { padding:10px; border-radius:8px; border:none; outline:none; }
-  input { width:70%; color:black; }
-  button { width:25%; background:#2563eb; color:white; font-weight:600; cursor:pointer; transition:0.2s; }
-  button:hover { background:#1d4ed8; transform:scale(1.02); }
-  #avatar { border-radius:50%; margin:10px auto; }
-  a { color:#38bdf8; text-decoration:none; font-weight:500; }
-  a:hover { text-decoration:underline; }
+body { font-family: 'Inter', sans-serif; background:#0f172a; color:white; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; margin:0; padding:20px; }
+.card { background:#1e293b; border-radius:12px; padding:24px; max-width:420px; width:100%; box-shadow:0 10px 20px rgba(0,0,0,0.3); text-align:center; }
+input, button { padding:10px; border-radius:8px; border:none; outline:none; }
+input { width:70%; color:black; }
+button { width:25%; background:#2563eb; color:white; font-weight:600; cursor:pointer; transition:0.2s; }
+button:hover { background:#1d4ed8; transform:scale(1.02); }
+#avatar { border-radius:50%; margin:10px auto; }
+a { color:#38bdf8; text-decoration:none; font-weight:500; }
+a:hover { text-decoration:underline; }
 </style>
 </head>
 <body>
@@ -32,11 +32,11 @@
 <script>
 const PROXY = "https://randomproxy.marcusvrwastaken.workers.dev/";
 
-async function fetchWithProxy(url) {
+async function fetchWithProxy(url, options = {}) {
   try {
-    const response = await fetch(PROXY + "?url=" + encodeURIComponent(url));
-    if (!response.ok) throw new Error(`Proxy failed (${response.status})`);
-    return await response.json();
+    const res = await fetch(PROXY + "?url=" + encodeURIComponent(url), options);
+    if (!res.ok) throw new Error(`Proxy failed (${res.status})`);
+    return await res.json();
   } catch (err) {
     throw new Error("Failed to fetch via proxy: " + err.message);
   }
@@ -44,15 +44,12 @@ async function fetchWithProxy(url) {
 
 async function getUserByName(username) {
   const url = "https://users.roblox.com/v1/usernames/users";
-  const res = await fetchWithProxy(url, {
+  return await fetchWithProxy(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ usernames: [username] })
-  });
-  const data = await res.json();
-  return data.data?.[0] || null;
+  }).then(data => data.data?.[0] || null);
 }
-
 
 async function getUserById(id) {
   const url = `https://users.roblox.com/v1/users/${id}`;
@@ -91,14 +88,13 @@ async function lookup(input) {
 
 document.getElementById('lookupButton').addEventListener('click', () => {
   const input = document.getElementById('inputField').value.trim();
-  if (input) {
-    const path = /^\d+$/.test(input) ? `/users/${input}` : `/usernames/${input}`;
-    window.history.pushState({}, '', path);
-    lookup(input);
-  }
+  if (!input) return;
+  const path = /^\d+$/.test(input) ? `/users/${input}` : `/usernames/${input}`;
+  window.history.pushState({}, '', path);
+  lookup(input);
 });
 
-// Auto-load from /usernames/<username> or /users/<id>
+// Auto-load from URL
 window.addEventListener('DOMContentLoaded', () => {
   const path = window.location.pathname;
   const nameMatch = path.match(/^\/usernames\/([^/]+)/);
