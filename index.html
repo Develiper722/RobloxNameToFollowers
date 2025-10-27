@@ -1,204 +1,172 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Roblox User Lookup</title>
-<link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.4/dist/tailwind.min.css" rel="stylesheet">
-<style>
-body { font-family: 'Inter', sans-serif; background:#0f172a; color:white; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; margin:0; padding:20px; }
-.card { background:#1e293b; border-radius:12px; padding:24px; max-width:600px; width:100%; box-shadow:0 10px 20px rgba(0,0,0,0.3); text-align:center; margin-bottom:20px; }
-input, button { padding:10px; border-radius:8px; border:none; outline:none; }
-input { width:70%; color:black; }
-button { width:25%; background:#2563eb; color:white; font-weight:600; cursor:pointer; transition:0.2s; }
-button:hover { background:#1d4ed8; transform:scale(1.02); }
-#avatar { border-radius:50%; margin:10px auto; }
-a { color:#38bdf8; text-decoration:none; font-weight:500; }
-a:hover { text-decoration:underline; }
-.follower-link { display:inline-block; margin:2px 4px; padding:2px 6px; background:#334155; border-radius:6px; }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Roblox Username Lookup</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: white;
+      text-align: center;
+      margin: 0;
+      padding: 2em;
+    }
+    input, button {
+      padding: 0.5em;
+      margin: 0.5em;
+      border-radius: 8px;
+      border: none;
+      font-size: 1em;
+    }
+    input { width: 250px; }
+    button {
+      background: #3b82f6;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover { background: #2563eb; }
+    .user-card {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 1.5em;
+      margin: 1em auto;
+      max-width: 600px;
+      box-shadow: 0 0 12px rgba(0,0,0,0.4);
+    }
+    .followers, .friends {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.5em;
+    }
+    .followers a, .friends a {
+      color: #60a5fa;
+      text-decoration: none;
+      border: 1px solid #60a5fa;
+      padding: 0.3em 0.6em;
+      border-radius: 8px;
+    }
+    .followers a:hover, .friends a:hover {
+      background: #1d4ed8;
+    }
+  </style>
 </head>
 <body>
+  <h1>Roblox User Lookup</h1>
+  <input id="usernameInput" type="text" placeholder="Enter username or ID" />
+  <button onclick="lookup()">Lookup</button>
+  <div id="result"></div>
 
-<h1 class="text-3xl font-bold mb-4">🔍 Roblox User Lookup</h1>
+  <script>
+    const PROXIES = [
+      "https://randomproxy.marcusvrwastaken.workers.dev/",
+      "https://lucky-king-4d24.marcusvrwastaken.workers.dev/",
+      "https://autumn-feather-e685.marcusvrwastaken.workers.dev/",
+      "https://shrill-bird-9a78.marcusvrwastaken.workers.dev/",
+      "https://sweet-cherry-a82c.marcusvrwastaken.workers.dev/"
+    ];
 
-<div class="card">
-  <div class="flex justify-center mb-4">
-    <input id="inputField" placeholder="Enter username or user ID">
-    <button id="lookupButton">Lookup</button>
-  </div>
-  <div id="result">Enter a Roblox username or ID to start.</div>
-</div>
-
-<script>
-// --- Proxy Failover Setup ---
-const PROXIES = [
-  "https://randomproxy.marcusvrwastaken.workers.dev/",
-  "https://lucky-king-4d24.marcusvrwastaken.workers.dev/",
-  "https://autumn-feather-e685.marcusvrwastaken.workers.dev/",
-  "https://shrill-bird-9a78.marcusvrwastaken.workers.dev/",
-  "https://sweet-cherry-a82c.marcusvrwastaken.workers.dev/"
-];
-
-async function fetchWithProxyFailover(url, options = {}) {
-  let lastError = null;
-  for (const proxy of PROXIES) {
-    try {
-      const res = await fetch(proxy + "?url=" + encodeURIComponent(url), options);
-      if (!res.ok) throw new Error(`Proxy failed (${res.status})`);
-      return await res.json();
-    } catch (err) {
-      lastError = err;
-      console.warn(`Proxy ${proxy} failed:`, err.message);
-      await new Promise(r => setTimeout(r, 200));
-    }
-  }
-  throw new Error(`All proxies failed: ${lastError.message}`);
-}
-
-// --- Roblox API Helpers ---
-async function getUserByName(username) {
-  const url = "https://users.roblox.com/v1/usernames/users";
-  return await fetchWithProxyFailover(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ usernames: [username] })
-  }).then(data => data.data?.[0] || null);
-}
-
-async function getUserById(id) {
-  const url = `https://users.roblox.com/v1/users/${id}`;
-  return await fetchWithProxyFailover(url);
-}
-
-async function getFollowerCount(userId) {
-  const url = `https://friends.roblox.com/v1/users/${userId}/followers/count`;
-  const data = await fetchWithProxyFailover(url);
-  return data.count || 0;
-}
-
-async function getFriendCount(userId) {
-  const url = `https://friends.roblox.com/v1/users/${userId}/friends/count`;
-  const data = await fetchWithProxyFailover(url);
-  return data.count || 0;
-}
-
-// --- Pagination ---
-let followersCursor = null;
-let friendsCursor = null;
-
-async function loadFollowersPage(userId, limit = 100) {
-  let url = `https://friends.roblox.com/v1/users/${userId}/followers?limit=${limit}`;
-  if (followersCursor) url += `&cursor=${followersCursor}`;
-  const data = await fetchWithProxyFailover(url);
-  followersCursor = data.nextPageCursor || null;
-  return data.data || [];
-}
-
-async function loadFriendsPage(userId, limit = 100) {
-  let url = `https://friends.roblox.com/v1/users/${userId}/friends?limit=${limit}`;
-  if (friendsCursor) url += `&cursor=${friendsCursor}`;
-  const data = await fetchWithProxyFailover(url);
-  friendsCursor = data.nextPageCursor || null;
-  return data.data || [];
-}
-
-// --- Main Lookup Function ---
-async function lookup(input) {
-  const resultDiv = document.getElementById('result');
-  resultDiv.innerHTML = `<p>Loading...</p>`;
-  let user = null;
-  followersCursor = null;
-  friendsCursor = null;
-
-  try {
-    if (/^\d+$/.test(input)) {
-      user = await getUserById(input);
-      if (user.errors) throw new Error("User ID not found");
-    } else {
-      user = await getUserByName(input);
-      if (!user) throw new Error("Username not found");
+    async function fetchWithProxyFailover(url, options = {}) {
+      let lastError = null;
+      for (const proxy of PROXIES) {
+        try {
+          const res = await fetch(proxy + "?url=" + encodeURIComponent(url), options);
+          if (!res.ok) throw new Error(`Proxy failed (${res.status})`);
+          return await res.json();
+        } catch (err) {
+          lastError = err;
+          console.warn(`Proxy ${proxy} failed:`, err.message);
+          await new Promise(r => setTimeout(r, 200));
+        }
+      }
+      throw new Error(`All proxies failed: ${lastError?.message}`);
     }
 
-    const avatarUrl = `https://www.roblox.com/headshot-thumbnail/image?userId=${user.id}&width=180&height=180&format=png`;
-    const profileUrl = `https://www.roblox.com/users/${user.id}/profile`;
+    async function getUserId(nameOrId) {
+      // If numeric, treat as ID directly
+      if (/^[0-9]+$/.test(nameOrId)) return nameOrId;
 
-    const [followersCount, friendsCount] = await Promise.all([
-      getFollowerCount(user.id),
-      getFriendCount(user.id)
-    ]);
+      // Check cache
+      const cached = localStorage.getItem("cache:" + nameOrId.toLowerCase());
+      if (cached) return cached;
 
-    resultDiv.innerHTML = `
-      <img id="avatar" src="${avatarUrl}" width="180" height="180" alt="Avatar">
-      <h2 class="text-2xl font-bold mt-2">${user.name}</h2>
-      <p class="text-gray-300">${user.displayName || 'User ID: ' + user.id}</p>
-      <p><b>User ID:</b> ${user.id}</p>
-      ${user.hasVerifiedBadge ? `<p class="text-green-400">✔️ Verified User</p>` : ''}
-      <p><b>Followers:</b> ${followersCount} | <b>Friends:</b> ${friendsCount}</p>
-      <p class="mt-3"><a href="${profileUrl}" target="_blank">View Roblox Profile →</a></p>
-      <div class="mt-4 space-y-2">
-        <button id="moreFollowersBtn" class="px-4 py-2 bg-green-500 rounded-lg hover:bg-green-600 transition">Show Followers</button>
-        <div id="followersList" class="mt-2 text-left"></div>
-        <button id="moreFriendsBtn" class="px-4 py-2 bg-purple-500 rounded-lg hover:bg-purple-600 transition mt-2">Show Friends</button>
-        <div id="friendsList" class="mt-2 text-left"></div>
-      </div>
-    `;
+      // Lookup username → ID
+      const data = await fetchWithProxyFailover("https://users.roblox.com/v1/usernames/users", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({usernames: [nameOrId], excludeBannedUsers: false})
+      });
+      const id = data?.data?.[0]?.id;
+      if (!id) throw new Error("User not found");
+      localStorage.setItem("cache:" + nameOrId.toLowerCase(), id);
+      return id;
+    }
 
-    document.getElementById('moreFollowersBtn').addEventListener('click', async () => {
-      const div = document.getElementById('followersList');
-      div.innerHTML += `<p>Loading...</p>`;
-      const followers = await loadFollowersPage(user.id);
-      if (followers.length === 0) {
-        div.innerHTML += `<p>No more followers.</p>`;
-        return;
+    async function lookup() {
+      const input = document.getElementById("usernameInput").value.trim();
+      const resultDiv = document.getElementById("result");
+      resultDiv.innerHTML = "Loading...";
+
+      try {
+        const userId = await getUserId(input);
+        const user = await fetchWithProxyFailover(`https://users.roblox.com/v1/users/${userId}`);
+
+        // Update URL
+        const newUrl = `/usernames/${encodeURIComponent(input)}`;
+        history.pushState({}, "", newUrl);
+
+        const headshot = `https://www.roblox.com/headshot-thumbnail/image?userId=${userId}&width=180&height=180&format=png`;
+
+        resultDiv.innerHTML = `
+          <div class="user-card">
+            <img src="${headshot}" width="180" height="180"><br>
+            <h2>${user.displayName} (@${user.name}) ${user.hasVerifiedBadge ? "✅" : ""}</h2>
+            <p>ID: ${user.id}</p>
+            <p><a href="https://www.roblox.com/users/${user.id}/profile" target="_blank">Profile</a></p>
+            <button onclick="loadMoreInfo(${user.id})">More Info</button>
+            <div id="more-${user.id}"></div>
+          </div>
+        `;
+      } catch (err) {
+        resultDiv.innerHTML = `<p style="color:red;">Error: ${err.message}</p>`;
       }
-      div.innerHTML += followers.map(f => `<a href="https://www.roblox.com/users/${f.id}/profile" target="_blank" class="follower-link">${f.name || f.id}</a>`).join('');
-      if (!followersCursor) document.getElementById('moreFollowersBtn').disabled = true;
-    });
+    }
 
-    document.getElementById('moreFriendsBtn').addEventListener('click', async () => {
-      const div = document.getElementById('friendsList');
-      div.innerHTML += `<p>Loading...</p>`;
-      const friends = await loadFriendsPage(user.id);
-      if (friends.length === 0) {
-        div.innerHTML += `<p>No more friends.</p>`;
-        return;
+    async function loadMoreInfo(userId) {
+      const container = document.getElementById(`more-${userId}`);
+      container.innerHTML = "Loading followers & friends...";
+
+      try {
+        const followers = await fetchWithProxyFailover(`https://friends.roblox.com/v1/users/${userId}/followers?limit=100`);
+        const friends = await fetchWithProxyFailover(`https://friends.roblox.com/v1/users/${userId}/friends?limit=100`);
+
+        const followerLinks = followers.data.map(f => `<a href="https://www.roblox.com/users/${f.id}/profile" target="_blank">${f.name} (${f.id})</a>`).join(" ");
+        const friendLinks = friends.data.map(f => `<a href="https://www.roblox.com/users/${f.id}/profile" target="_blank">${f.name} (${f.id})</a>`).join(" ");
+
+        container.innerHTML = `
+          <p><b>Followers (${followers.data.length}):</b></p>
+          <div class="followers">${followerLinks}</div>
+          <p><b>Friends (${friends.data.length}):</b></p>
+          <div class="friends">${friendLinks}</div>
+        `;
+      } catch (err) {
+        container.innerHTML = `<p style="color:red;">Failed to load more info: ${err.message}</p>`;
       }
-      div.innerHTML += friends.map(f => `<a href="https://www.roblox.com/users/${f.id}/profile" target="_blank" class="follower-link">${f.name || f.id}</a>`).join('');
-      if (!friendsCursor) document.getElementById('moreFriendsBtn').disabled = true;
+    }
+
+    // Auto-load if on /usernames/<name>
+    window.addEventListener("DOMContentLoaded", () => {
+      const path = window.location.pathname;
+      if (path.startsWith("/usernames/")) {
+        const username = decodeURIComponent(path.split("/")[2] || "");
+        if (username) {
+          document.getElementById("usernameInput").value = username;
+          lookup();
+        }
+      }
     });
-
-  } catch (err) {
-    resultDiv.innerHTML = `<p>${err.message}</p>`;
-  }
-}
-
-// --- Event Listeners ---
-document.getElementById('lookupButton').addEventListener('click', () => {
-  const input = document.getElementById('inputField').value.trim();
-  if (!input) return;
-  const path = /^\d+$/.test(input) ? `/users/${input}` : `/usernames/${input}`;
-  window.history.pushState({}, '', path);
-  lookup(input);
-});
-
-// --- Handle URL Routing on Page Load ---
-window.addEventListener('DOMContentLoaded', () => {
-  const path = window.location.pathname;
-  const nameMatch = path.match(/^\/usernames\/([^/]+)/);
-  const idMatch = path.match(/^\/users\/(\d+)/);
-
-  if (nameMatch) {
-    const username = decodeURIComponent(nameMatch[1]);
-    document.getElementById('inputField').value = username;
-    lookup(username);
-  } else if (idMatch) {
-    const userId = decodeURIComponent(idMatch[1]);
-    document.getElementById('inputField').value = userId;
-    lookup(userId);
-  }
-});
-</script>
-
+  </script>
 </body>
 </html>
