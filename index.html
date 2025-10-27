@@ -76,6 +76,8 @@
       "https://sweet-cherry-a82c.marcusvrwastaken.workers.dev/"
     ];
 
+    const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
+
     async function fetchWithProxyFailover(url, options = {}) {
       let lastError = null;
       for (const proxy of PROXIES) {
@@ -94,17 +96,27 @@
 
     async function getUserId(nameOrId) {
       if (/^[0-9]+$/.test(nameOrId)) return nameOrId;
-      const cached = localStorage.getItem("cache:" + nameOrId.toLowerCase());
-      if (cached) return cached;
+
+      const cachedRaw = localStorage.getItem("cache:" + nameOrId.toLowerCase());
+      if (cachedRaw) {
+        try {
+          const cached = JSON.parse(cachedRaw);
+          if (Date.now() - cached.timestamp < CACHE_EXPIRY) {
+            return cached.id; // use valid cache
+          }
+        } catch {}
+      }
 
       const data = await fetchWithProxyFailover("https://users.roblox.com/v1/usernames/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ usernames: [nameOrId], excludeBannedUsers: false })
       });
+
       const id = data?.data?.[0]?.id;
       if (!id) throw new Error("User not found");
-      localStorage.setItem("cache:" + nameOrId.toLowerCase(), id);
+
+      localStorage.setItem("cache:" + nameOrId.toLowerCase(), JSON.stringify({ id, timestamp: Date.now() }));
       return id;
     }
 
