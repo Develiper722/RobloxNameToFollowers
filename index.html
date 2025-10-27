@@ -1,175 +1,114 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Roblox User Info Lookup</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.4/dist/tailwind.min.css" rel="stylesheet">
-  <style>
-    body {
-      font-family: 'Inter', system-ui, sans-serif;
-      background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
-      color: white;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      margin: 0;
-      padding: 20px;
-    }
-    .card {
-      background: #1e293b;
-      border-radius: 12px;
-      box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-      padding: 24px;
-      max-width: 420px;
-      width: 100%;
-    }
-    input, button {
-      padding: 10px;
-      border-radius: 8px;
-      border: none;
-      outline: none;
-    }
-    input {
-      width: 70%;
-      color: black;
-    }
-    button {
-      background: #2563eb;
-      color: white;
-      font-weight: 600;
-      cursor: pointer;
-      width: 25%;
-      transition: 0.2s;
-    }
-    button:hover {
-      background: #1d4ed8;
-      transform: scale(1.02);
-    }
-    #avatar {
-      border-radius: 50%;
-      margin: 10px auto;
-    }
-    a {
-      color: #38bdf8;
-      text-decoration: none;
-      font-weight: 500;
-    }
-    a:hover {
-      text-decoration: underline;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roblox User Lookup</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.4/dist/tailwind.min.css" rel="stylesheet">
+<style>
+  body { font-family: 'Inter', sans-serif; background: #0f172a; color: white; min-height: 100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; margin:0; padding:20px; }
+  .card { background:#1e293b; border-radius:12px; padding:24px; max-width:420px; width:100%; box-shadow:0 10px 20px rgba(0,0,0,0.3); text-align:center; }
+  input, button { padding:10px; border-radius:8px; border:none; outline:none; }
+  input { width:70%; color:black; }
+  button { width:25%; background:#2563eb; color:white; font-weight:600; cursor:pointer; transition:0.2s; }
+  button:hover { background:#1d4ed8; transform:scale(1.02); }
+  #avatar { border-radius:50%; margin:10px auto; }
+  a { color:#38bdf8; text-decoration:none; font-weight:500; }
+  a:hover { text-decoration:underline; }
+</style>
 </head>
 <body>
-  <h1 class="text-3xl font-bold mb-4">🔍 Roblox User Lookup</h1>
-  <div class="card">
-    <div class="flex justify-center mb-4">
-      <input id="inputField" placeholder="Enter username or user ID" />
-      <button id="lookupButton">Lookup</button>
-    </div>
-    <div id="result">Enter a Roblox username or ID to start.</div>
+
+<h1 class="text-3xl font-bold mb-4">🔍 Roblox User Lookup</h1>
+
+<div class="card">
+  <div class="flex justify-center mb-4">
+    <input id="inputField" placeholder="Enter username or user ID">
+    <button id="lookupButton">Lookup</button>
   </div>
+  <div id="result">Enter a Roblox username or ID to start.</div>
+</div>
 
-  <script>
-    const PROXIES = [
-      'https://randomproxy.marcusvrwastaken.workers.dev/?url=',
-      'https://api.allorigins.win/raw?url=',
-      'https://thingproxy.freeboard.io/fetch/'
-    ];
+<script>
+const PROXY = "https://randomproxy.marcusvrwastaken.workers.dev/";
 
-    async function fetchWithProxy(url, options = {}) {
-      for (const proxy of PROXIES) {
-        const finalUrl = proxy + encodeURIComponent(url);
-        try {
-          const response = await fetch(finalUrl, options);
-          if (response.ok) return response;
-          console.warn(`Proxy ${proxy} failed (${response.status})`);
-        } catch (err) {
-          console.warn(`Proxy ${proxy} error`, err);
-        }
-      }
-      throw new Error('All proxies failed — Roblox API may be unreachable.');
+async function fetchWithProxy(url) {
+  try {
+    const response = await fetch(PROXY + "?url=" + encodeURIComponent(url));
+    if (!response.ok) throw new Error(`Proxy failed (${response.status})`);
+    return await response.json();
+  } catch (err) {
+    throw new Error("Failed to fetch via proxy: " + err.message);
+  }
+}
+
+async function getUserByName(username) {
+  const url = `https://users.roblox.com/v1/users/search?keyword=${encodeURIComponent(username)}&limit=1`;
+  const data = await fetchWithProxy(url);
+  return data.data?.[0] || null;
+}
+
+async function getUserById(id) {
+  const url = `https://users.roblox.com/v1/users/${id}`;
+  return await fetchWithProxy(url);
+}
+
+async function lookup(input) {
+  const resultDiv = document.getElementById('result');
+  resultDiv.innerHTML = `<p>Loading...</p>`;
+  let user = null;
+
+  try {
+    if (/^\d+$/.test(input)) {
+      user = await getUserById(input);
+      if (user.errors) throw new Error("User ID not found");
+    } else {
+      user = await getUserByName(input);
+      if (!user) throw new Error("Username not found");
     }
 
-    async function getUserByName(username) {
-      const url = `https://users.roblox.com/v1/users/search?keyword=${encodeURIComponent(username)}&limit=1`;
-      const res = await fetchWithProxy(url);
-      const data = await res.json();
-      return data.data && data.data[0] ? data.data[0] : null;
-    }
+    const avatarUrl = `https://www.roblox.com/headshot-thumbnail/image?userId=${user.id}&width=180&height=180&format=png`;
+    const profileUrl = `https://www.roblox.com/users/${user.id}/profile`;
 
-    async function getUserById(id) {
-      const url = `https://users.roblox.com/v1/users/${id}`;
-      const res = await fetchWithProxy(url);
-      return await res.json();
-    }
+    resultDiv.innerHTML = `
+      <img id="avatar" src="${avatarUrl}" width="180" height="180" alt="Avatar">
+      <h2 class="text-2xl font-bold mt-2">${user.name}</h2>
+      <p class="text-gray-300">${user.displayName || ''}</p>
+      <p><b>User ID:</b> ${user.id}</p>
+      ${user.hasVerifiedBadge ? `<p class="text-green-400">✔️ Verified User</p>` : ''}
+      <p class="mt-3"><a href="${profileUrl}" target="_blank">View Roblox Profile →</a></p>
+    `;
+  } catch (err) {
+    resultDiv.innerHTML = `<p>${err.message}</p>`;
+  }
+}
 
-    async function lookup(input) {
-      const resultDiv = document.getElementById('result');
-      resultDiv.innerHTML = `<p>Loading...</p>`;
+document.getElementById('lookupButton').addEventListener('click', () => {
+  const input = document.getElementById('inputField').value.trim();
+  if (input) {
+    const path = /^\d+$/.test(input) ? `/users/${input}` : `/usernames/${input}`;
+    window.history.pushState({}, '', path);
+    lookup(input);
+  }
+});
 
-      let user = null;
+// Auto-load from /usernames/<username> or /users/<id>
+window.addEventListener('DOMContentLoaded', () => {
+  const path = window.location.pathname;
+  const nameMatch = path.match(/^\/usernames\/([^/]+)/);
+  const idMatch = path.match(/^\/users\/(\d+)/);
 
-      // If numeric, lookup by ID
-      if (/^\d+$/.test(input)) {
-        try {
-          user = await getUserById(input);
-          if (user.errors) throw new Error('User not found');
-        } catch {
-          resultDiv.innerHTML = `<p>User ID ${input} not found.</p>`;
-          return;
-        }
-      } else {
-        try {
-          user = await getUserByName(input);
-          if (!user) throw new Error('Username not found');
-        } catch {
-          resultDiv.innerHTML = `<p>Username "${input}" not found.</p>`;
-          return;
-        }
-      }
+  if (nameMatch) {
+    const username = decodeURIComponent(nameMatch[1]);
+    document.getElementById('inputField').value = username;
+    lookup(username);
+  } else if (idMatch) {
+    const userId = decodeURIComponent(idMatch[1]);
+    document.getElementById('inputField').value = userId;
+    lookup(userId);
+  }
+});
+</script>
 
-      const avatarUrl = `https://www.roblox.com/headshot-thumbnail/image?userId=${user.id}&width=180&height=180&format=png`;
-      const profileUrl = `https://www.roblox.com/users/${user.id}/profile`;
-
-      resultDiv.innerHTML = `
-        <img id="avatar" src="${avatarUrl}" alt="Avatar" width="180" height="180" />
-        <h2 class="text-2xl font-bold mt-2">${user.name}</h2>
-        <p class="text-gray-300">${user.displayName ? user.displayName : ''}</p>
-        <p><b>User ID:</b> ${user.id}</p>
-        ${user.hasVerifiedBadge ? `<p class="text-green-400">✔️ Verified User</p>` : ''}
-        <p class="mt-3"><a href="${profileUrl}" target="_blank">View Roblox Profile →</a></p>
-      `;
-    }
-
-    document.getElementById('lookupButton').addEventListener('click', () => {
-      const input = document.getElementById('inputField').value.trim();
-      if (input) {
-        let path = /^\d+$/.test(input) ? `/users/${input}` : `/usernames/${input}`;
-        window.history.pushState({}, '', path);
-        lookup(input);
-      }
-    });
-
-    // Auto-detect path for /usernames/ or /users/
-    window.addEventListener('DOMContentLoaded', () => {
-      const path = window.location.pathname;
-      const nameMatch = path.match(/^\/usernames\/([^/]+)/);
-      const idMatch = path.match(/^\/users\/(\d+)/);
-
-      if (nameMatch) {
-        const username = decodeURIComponent(nameMatch[1]);
-        document.getElementById('inputField').value = username;
-        lookup(username);
-      } else if (idMatch) {
-        const userId = decodeURIComponent(idMatch[1]);
-        document.getElementById('inputField').value = userId;
-        lookup(userId);
-      }
-    });
-  </script>
 </body>
 </html>
