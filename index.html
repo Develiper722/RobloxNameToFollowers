@@ -8,7 +8,7 @@
 <style>
 body { font-family: 'Inter', sans-serif; background:#0f172a; color:white; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; margin:0; padding:20px; }
 .card { background:#1e293b; border-radius:12px; padding:24px; max-width:600px; width:100%; box-shadow:0 10px 20px rgba(0,0,0,0.3); text-align:center; margin-bottom:20px; }
-input, button { padding:10px; border-radius:8px; border:none; outline:none; }
+input, button, select { padding:10px; border-radius:8px; border:none; outline:none; }
 input { width:70%; color:black; }
 button { width:25%; background:#2563eb; color:white; font-weight:600; cursor:pointer; transition:0.2s; }
 button:hover { background:#1d4ed8; transform:scale(1.02); }
@@ -141,6 +141,18 @@ async function lookup(input) {
         <div id="followersList" class="mt-2 text-left"></div>
         <button id="moreFriendsBtn" class="px-4 py-2 bg-purple-500 rounded-lg hover:bg-purple-600 transition mt-2">Show Friends</button>
         <div id="friendsList" class="mt-2 text-left"></div>
+
+        <!-- Batch Size Dropdown -->
+        <div class="flex justify-center items-center gap-2 mt-2">
+          <label for="batchSelect" class="text-gray-300">Batch size:</label>
+          <select id="batchSelect" class="px-2 py-1 rounded-lg text-black">
+            <option value="10">10</option>
+            <option value="18">18</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100" selected>100</option>
+          </select>
+        </div>
       </div>
     `;
 
@@ -189,16 +201,16 @@ async function lookup(input) {
       try {
         const totalFollowers = await getFollowerCount(user.id);
         const sampleSize = totalFollowers > 5000 ? 1000 : 500;
+        const batchSize = parseInt(document.getElementById("batchSelect").value, 10);
 
         let collected = [];
         let batch;
         followersCursor = null;
 
-        while (collected.length < sampleSize) {
-          batch = await loadFollowersPage(user.id, 100);
+        while (collected.length < sampleSize && followersCursor !== null) {
+          batch = await loadFollowersPage(user.id, batchSize);
           if (batch.length === 0) break;
           collected.push(...batch);
-          if (!followersCursor) break;
         }
 
         const sample = collected.slice(0, sampleSize);
