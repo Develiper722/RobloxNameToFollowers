@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -121,7 +120,7 @@ async function lookup(input) {
       if (!user) throw new Error("Username not found");
     }
 
-    const avatarUrl = `https://www.roblox.com/headshot-thumbnail/image?userId=${user.id}&width=180&height=180&format=png`;
+    const avatarUrl = `https://www.roblox.com/headshot-thumbnail/image?userId=${user.id}&width=180&height=180&format=png&rand=${Date.now()}`;
     const profileUrl = `https://www.roblox.com/users/${user.id}/profile`;
 
     const [followersCount, friendsCount] = await Promise.all([
@@ -145,6 +144,7 @@ async function lookup(input) {
       </div>
     `;
 
+    // --- Show Followers ---
     document.getElementById('moreFollowersBtn').addEventListener('click', async () => {
       const div = document.getElementById('followersList');
       div.innerHTML += `<p>Loading...</p>`;
@@ -157,6 +157,7 @@ async function lookup(input) {
       if (!followersCursor) document.getElementById('moreFollowersBtn').disabled = true;
     });
 
+    // --- Show Friends ---
     document.getElementById('moreFriendsBtn').addEventListener('click', async () => {
       const div = document.getElementById('friendsList');
       div.innerHTML += `<p>Loading...</p>`;
@@ -167,6 +168,63 @@ async function lookup(input) {
       }
       div.innerHTML += friends.map(f => `<a href="https://www.roblox.com/users/${f.id}/profile" target="_blank" class="follower-link">${f.name || f.id}</a>`).join('');
       if (!friendsCursor) document.getElementById('moreFriendsBtn').disabled = true;
+    });
+
+    // --- Scan Followers Button ---
+    const scanBtn = document.createElement("button");
+    scanBtn.textContent = "🔎 Scan Followers";
+    scanBtn.className = "px-4 py-2 bg-blue-500 rounded-lg hover:bg-blue-600 transition mt-2";
+    document.querySelector(".mt-4.space-y-2").appendChild(scanBtn);
+
+    const scanResultDiv = document.createElement("div");
+    scanResultDiv.id = "scanResult";
+    scanResultDiv.className = "mt-3 text-left";
+    document.querySelector(".mt-4.space-y-2").appendChild(scanResultDiv);
+
+    scanBtn.addEventListener("click", async () => {
+      scanBtn.disabled = true;
+      scanBtn.textContent = "Scanning...";
+      scanResultDiv.innerHTML = `<p>Loading followers sample...</p>`;
+
+      try {
+        const totalFollowers = await getFollowerCount(user.id);
+        const sampleSize = totalFollowers > 5000 ? 1000 : 500;
+
+        let collected = [];
+        let batch;
+        followersCursor = null;
+
+        while (collected.length < sampleSize) {
+          batch = await loadFollowersPage(user.id, 100);
+          if (batch.length === 0) break;
+          collected.push(...batch);
+          if (!followersCursor) break;
+        }
+
+        const sample = collected.slice(0, sampleSize);
+        if (sample.length === 0) throw new Error("No followers found.");
+
+        const prefixCounts = {};
+        for (const f of sample) {
+          const prefix = String(f.id).slice(0, 2);
+          prefixCounts[prefix] = (prefixCounts[prefix] || 0) + 1;
+        }
+
+        const sorted = Object.entries(prefixCounts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5);
+
+        scanResultDiv.innerHTML = `
+          <p><b>Sample size:</b> ${sample.length}</p>
+          <p><b>Top shared starting digits:</b></p>
+          ${sorted.map(([prefix, count]) => `<p>🧩 <b>${prefix}</b> — ${count} users</p>`).join("")}
+        `;
+      } catch (err) {
+        scanResultDiv.innerHTML = `<p class="text-red-400">⚠️ ${err.message}</p>`;
+      }
+
+      scanBtn.disabled = false;
+      scanBtn.textContent = "🔎 Scan Followers";
     });
 
   } catch (err) {
